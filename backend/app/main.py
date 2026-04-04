@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from core import db
+
 app = FastAPI()
 
 origins = ["*"]
@@ -27,3 +29,6 @@ async def say_hello(name: str):
 async def health():
     return {"status": "ok"}
 
+@app.get("/test-connection")
+async def test_connection():
+    return {"Connection " : f"{db.test_connection()}"}
