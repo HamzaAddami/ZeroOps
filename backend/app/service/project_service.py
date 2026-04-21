@@ -1,5 +1,4 @@
 from fastapi import HTTPException, status
-from sentry_sdk import continue_trace
 from sqlalchemy.orm import Session
 from typing import Type
 from app.model.project import Project

@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from core import db
+from app.api.routes import project_router
+
+from app.core.db import test_connection
+
 
 app = FastAPI()
 
@@ -14,21 +17,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+app.include_router(project_router.router)
 
 @app.get("/")
 async def root():
-    return {"message": "Hello World"}
-
-
-@app.get("/hello/{name}")
-async def say_hello(name: str):
-    return {"message": f"Hello {name}"}
+    return {"message": "Welcome to ZeroOps"}
+@app.get("/test-DB-connection")
+async def get_db_connection_health():
+    return {"message": f"{test_connection()}"}
 
 @app.get("/health")
-async def health():
+async def get_health():
     return {"status": "ok"}
 
-@app.get("/test-connection")
-async def test_connection():
-    return {"Connection " : f"{db.test_connection()}"}
+

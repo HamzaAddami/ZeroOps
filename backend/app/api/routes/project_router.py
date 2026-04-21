@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.dto.projectDTO import ProjectResponse, ProjectCreate
-from app.service import projectService
+from app.service import project_service
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
@@ -15,28 +15,28 @@ def list_projects(
         limit: int = 100,
         db: Session = Depends(get_db)
 ):
-    return projectService.get_all_projects(db, skip=skip, limit=limit)
+    return project_service.get_all_projects(db, skip=skip, limit=limit)
 
 @router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 def create_project(
         project: ProjectCreate,
         db: Session = Depends(get_db)
 ):
-    return projectService.create_project(db, project)
+    return project_service.create_project(db, project)
 
 @router.get("/{project_id}", response_model=ProjectResponse)
 def get_project(
         project_id: UUID,
         db: Session = Depends(get_db)
 ):
-    return projectService.get_project_by_id(db, project_id)
+    return project_service.get_project_by_id(db, project_id)
 
 @router.get("/{project_name}", response_model=ProjectResponse)
 def get_project_by_name(
         project_name: str,
         db: Session = Depends(get_db)
 ):
-    return projectService.get_project_by_name(db, project_name)
+    return project_service.get_project_by_name(db, project_name)
 
 
 
