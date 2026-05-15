@@ -1,42 +1,44 @@
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, status
 from fastapi.params import Depends
 from typing import List
 from uuid import UUID
 from sqlalchemy.orm import Session
 from app.core.db import get_db
+from app.core.dependecies import authorize
 from app.dto.projectDTO import ProjectResponse, ProjectCreate
-from app.service import project_service
+from app.service.project_service import ProjectService
+from app.model.user import User
+project_router = APIRouter(prefix="/projects", tags=["Projects"])
 
-router = APIRouter(prefix="/projects", tags=["Projects"])
-
-@router.get("/", response_model=List[ProjectResponse])
+@project_router.get("/", response_model=List[ProjectResponse])
 def list_projects(
-        skip: int = 0,
-        limit: int = 100,
-        db: Session = Depends(get_db)
+        db: Session = Depends(get_db),
+        current_user: User = Depends(authorize)
 ):
-    return project_service.get_all_projects(db, skip=skip, limit=limit)
+    return ProjectService.get_all_projects(db)
 
-@router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
+@project_router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 def create_project(
         project: ProjectCreate,
-        db: Session = Depends(get_db)
+        db: Session = Depends(get_db),
+        current_user: User = Depends(authorize)
 ):
-    return project_service.create_project(db, project)
+    return ProjectService.create_project(db, project, current_user)
 
-@router.get("/{project_id}", response_model=ProjectResponse)
+@project_router.get("/{project_id}", response_model=ProjectResponse)
 def get_project(
         project_id: UUID,
-        db: Session = Depends(get_db)
+        db: Session = Depends(get_db),
+        current_user: User = Depends(authorize)
 ):
-    return project_service.get_project_by_id(db, project_id)
+    return ProjectService.get_project_by_id(db, project_id)
 
-@router.get("/{project_name}", response_model=ProjectResponse)
+@project_router.get("/{project_name}", response_model=ProjectResponse)
 def get_project_by_name(
         project_name: str,
         db: Session = Depends(get_db)
 ):
-    return project_service.get_project_by_name(db, project_name)
+    return ProjectService.get_project_by_name(db, project_name)
 
 
 

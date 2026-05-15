@@ -1,8 +1,7 @@
 from datetime import datetime
-
-from sqlalchemy import Column, UUID, ForeignKey, String, Enum, Integer, DateTime, Text
+from sqlalchemy import Column, ForeignKey, String, Enum, Integer, DateTime, Text
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-
 from ..core.db import Base
 import enum
 import uuid
@@ -121,6 +120,16 @@ class PipelineStage(Base):
 
     def skip(self, skipped: bool) -> None:
         self.status = StageStatus.skipped
+
+    def succeed(self, logs: str = None) -> None:
+        self.status = StageStatus.success
+        self.logs = logs
+        self.finished_at = datetime.utcnow()
+        if self.started_at:
+            self.duration_seconds = int(
+                (self.finished_at - self.started_at).total_seconds()
+            )
+
 
 
 

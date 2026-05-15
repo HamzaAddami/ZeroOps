@@ -10,6 +10,12 @@ class ProjectCreate(BaseModel):
     description: Optional[str] = Field(None, max_length=1000)
     repository_url: Optional[str] = Field(None)
 
+class ProjectUpdate(BaseModel):
+    name: str = Field(..., min_length=13, max_length=100)
+    description: Optional[str] = Field(None, max_length=1000)
+    repository_url: Optional[str] = Field(None)
+
+
 class ProjectResponse(BaseModel):
     id: UUID
     name: str

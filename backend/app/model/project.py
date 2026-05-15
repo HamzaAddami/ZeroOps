@@ -1,7 +1,5 @@
-from .pipeline import Pipeline
 from ..core.db import Base
-
-from sqlalchemy import Column, Enum, String, DateTime, Table, ForeignKey, Boolean
+from sqlalchemy import Column, Enum, String, DateTime, Table, ForeignKey, Boolean, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -28,7 +26,7 @@ class Project(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(100), nullable=False, unique=True, index=True)
-    description = Column(String(255), nullable=True)
+    description = Column(Text, nullable=True)
 
     repository_url = Column(String(255), nullable=True)
     branch = Column(String(100), nullable=True, default='main')

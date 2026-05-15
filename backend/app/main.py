@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import project_router
-
+from app.api.routes.project_router import project_router
 from app.core.db import test_connection
 
 
@@ -17,7 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(project_router.router)
+app.include_router(project_router)
 
 @app.get("/")
 async def root():

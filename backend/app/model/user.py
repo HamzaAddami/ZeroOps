@@ -67,16 +67,15 @@ class User(Base):
             self.locked_until = datetime.utcnow() + timedelta(minutes=LOCKOUT_DURATION_MINUTES)
 
     def is_locked(self) -> bool:
-
+        if self.locked_until is None:
+            return False
         if datetime.utcnow() > self.locked_until:
             self.locked_until = None
             self.failed_login_attempts = 0
             return False
-
-        return self.locked_until is None
+        return True
 
     def get_lockout_remaining(self):
-
         if not self.locked_until:
             return 0
 
@@ -109,3 +108,5 @@ class User(Base):
     def complete_password_change(self, new_hashed: str) -> None:
         self.hashed_password = new_hashed
         self.must_change_password = False
+
+

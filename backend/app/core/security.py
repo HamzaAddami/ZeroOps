@@ -1,7 +1,8 @@
+from http import HTTPStatus
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
-
+from fastapi import HTTPException
 import os
 import pyotp
 import secrets
@@ -15,6 +16,10 @@ APP_NAME = str(os.getenv("APP_NAME"))
 
 pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 
+
+if not SECRET_KEY:
+    raise RuntimeError('JWT_SECRET_KEY environment variable not set')
+
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
@@ -22,9 +27,8 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
 def create_token(user_id: str, email: str, role: str) -> str:
-
     payload = {
-        'user_id': user_id,
+        'sub': str(user_id),
         'email': email,
         'role': role,
         'type': "access",
@@ -46,7 +50,10 @@ def decode_token(token: str) -> dict:
     try:
         return jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALGORITHM])
     except JWTError:
-        return None
+        raise HTTPException(
+            status_code=HTTPStatus.UNAUTHORIZED,
+            detail='Invalid token',
+        )
 
 def generate_mfa_secret() -> str:
     return pyotp.random_base32()
@@ -73,3 +80,4 @@ def verify_recovery_codes(palin_code: str, stored_hashes: str) -> tuple[bool, st
         if pwd_context.verify(hashed, palin_code):
             return True, hashed
     return False, ""
+

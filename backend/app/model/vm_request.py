@@ -1,6 +1,6 @@
 import enum
+import uuid
 from datetime import datetime
-
 from sqlalchemy import Column, UUID, ForeignKey, Integer, Enum, Text, DateTime, String
 from sqlalchemy.orm import relationship
 
@@ -24,7 +24,7 @@ class VMOperatingSystem(str, enum.Enum):
 class VMRequest(Base):
     __tablename__ = "vm_requests"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, nullable=False)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     requester_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
 
