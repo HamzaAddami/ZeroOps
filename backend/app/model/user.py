@@ -1,6 +1,5 @@
 from sqlalchemy import Column, Enum, String, DateTime, Integer, Boolean
 from sqlalchemy.orm import relationship
-
 from ..core.db import Base
 from ..model.project import project_members
 from sqlalchemy.dialects.postgresql import UUID
@@ -110,3 +109,9 @@ class User(Base):
         self.must_change_password = False
 
 
+
+class TokenBlacklist(Base):
+    __tablename__ = 'token_blacklist'
+    id         = Column(Integer, primary_key=True, autoincrement=True)
+    token      = Column(String, nullable=False, unique=True)
+    expired_at = Column(DateTime(timezone=True), nullable=False)

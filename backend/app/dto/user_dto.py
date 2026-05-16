@@ -1,13 +1,21 @@
+from typing import Optional
+from datetime import datetime
 from pydantic import BaseModel, Field
-from rich.status import Status
-
-from app.dto.projectDTO import ProjectResponse
+from app.model.user import UserStatus
+from uuid import UUID
 from app.model.user import UserRole
 
 class UserCreateByAdmin(BaseModel):
-    full_name: str = Field(...)
-    email: str = Field(...)
-    role: UserRole = Field(...)
+    full_name: str = Field(..., max_length=150)
+    email: str
+    role: UserRole
+
+class AdminCreateUserResponse(BaseModel):
+    id: UUID
+    username: str
+    email: str
+    role: UserRole
+    temp_password: str
 
 class UserLogin(BaseModel):
     username: str = Field(...)
@@ -18,11 +26,39 @@ class UserChangePassword(BaseModel):
     new_password: str = Field(...)
     confirm_password: str = Field(...)
 
+    def passwords_match(self) -> bool:
+        return self.new_password == self.confirm_password
+
+class MFAVerifyRequest(BaseModel):
+    code: str =  Field(...)
+
+class MFAConfirmRequest(BaseModel):
+    code: str = Field(...)
+
 class UserResponse(BaseModel):
-    full_name: str = Field(...)
-    email: str = Field(...)
-    last_login: str = Field(...)
-    is_active: bool = Field(...)
-    role: UserRole = Field(...)
-    status: Status = Field(...)
-    projects: list[ProjectResponse] = Field(...)
+    id: UUID
+    full_name: str
+    username: str
+    email: str
+    role: UserRole
+    status: UserStatus
+    is_active: bool
+    mfa_enabled: bool
+    must_change_password: bool
+    last_login: Optional[datetime] = None
+    created_at: datetime
+
+    model_config = {
+        "from_attributes": True
+    }
+class UserCreatedResponse(BaseModel):
+    user: UserResponse
+    temp_password: str
+
+class UpdateRoleRequest(BaseModel):
+    role: UserRole
+
+
+class BanRequest(BaseModel):
+    reason: str = Field(..., min_length=5)
+

@@ -3,6 +3,8 @@ from sqlalchemy import Column, ForeignKey, String, Enum, Integer, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from ..core.db import Base
+from app.model.security_scan import SecurityScan
+from app.model.deployment import Deployment
 import enum
 import uuid
 

@@ -1,8 +1,6 @@
-from http import HTTPStatus
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from passlib.context import CryptContext
-from fastapi import HTTPException
 import os
 import pyotp
 import secrets
@@ -20,11 +18,15 @@ pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
 if not SECRET_KEY:
     raise RuntimeError('JWT_SECRET_KEY environment variable not set')
 
+# Passwords
+
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
+
+# JWT Tokens
 
 def create_token(user_id: str, email: str, role: str) -> str:
     payload = {
@@ -37,7 +39,7 @@ def create_token(user_id: str, email: str, role: str) -> str:
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALGORITHM)
 
-def create_mfa_pending_token(user_id: str, email: str, role: str) -> str:
+def create_mfa_pending_token(user_id: str) -> str:
     payload = {
         'sub': user_id,
         'type': "mfa_pending",
@@ -46,14 +48,13 @@ def create_mfa_pending_token(user_id: str, email: str, role: str) -> str:
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=JWT_ALGORITHM)
 
-def decode_token(token: str) -> dict:
+def decode_token(token: str) -> dict | None:
     try:
         return jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALGORITHM])
     except JWTError:
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED,
-            detail='Invalid token',
-        )
+        return None
+
+# MFA
 
 def generate_mfa_secret() -> str:
     return pyotp.random_base32()
@@ -66,6 +67,8 @@ def verify_totp(secret: str, code: str) -> bool:
     totp = pyotp.TOTP(secret)
     return totp.verify(code, valid_window=1)
 
+# Recovery Codes
+
 def generate_recovery_codes(count:int = 8) -> list[str]:
     return [
         f"{secrets.token_hex(2).upper()}-{secrets.token_hex(2).upper()}"
@@ -77,7 +80,7 @@ def hash_recover_codes(codes: list[str]) -> str:
 
 def verify_recovery_codes(palin_code: str, stored_hashes: str) -> tuple[bool, str]:
     for hashed in stored_hashes.split(","):
-        if pwd_context.verify(hashed, palin_code):
+        if pwd_context.verify(palin_code, hashed):
             return True, hashed
     return False, ""
 

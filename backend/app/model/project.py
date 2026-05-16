@@ -2,7 +2,8 @@ from ..core.db import Base
 from sqlalchemy import Column, Enum, String, DateTime, Table, ForeignKey, Boolean, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
-
+from app.model.pipeline import Pipeline
+from app.model.vm_request import VMRequest
 from datetime import datetime
 import uuid
 import enum

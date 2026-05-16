@@ -1,5 +1,3 @@
-from enum import member
-
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Type
