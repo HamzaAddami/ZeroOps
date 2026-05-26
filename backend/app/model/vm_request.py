@@ -31,14 +31,12 @@ class VMRequest(Base):
     cpu_cores = Column(Integer, nullable=False)
     ram_gb = Column(Integer, nullable=False)
     disk_gb = Column(Integer, nullable=False)
-    os = Column(Enum(VMOperatingSystem), nullable=False, default=VMOperatingSystem.ubuntu_22)
-
+    os = Column(Enum(VMOperatingSystem, native_enum=False), nullable=False, default=VMOperatingSystem.ubuntu_22)
     purpose = Column(Text, nullable=False)
 
     duration_hours = Column(Integer, nullable=False, default=24)
 
-    status = Column(Enum(VMRequestStatus), nullable=False, default=VMRequestStatus.pending)
-
+    status = Column(Enum(VMRequestStatus, native_enum=False), nullable=False, default=VMRequestStatus.pending)
     reviewed_by_id = Column(UUID(as_uuid=True),ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     reviewed_at = Column(DateTime, nullable=True, default=None)
     reject_reason = Column(Text, nullable=True, default=None)

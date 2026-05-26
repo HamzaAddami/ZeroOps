@@ -19,3 +19,6 @@ Thumbs.db
 secrets.yaml
 
 *.tar
+
+terraform/workspaces/*/
+!terraform/workspaces/.gitkeep

@@ -113,20 +113,25 @@ async def authorize(
 
 
 def authorize_project(project_id_param: str = "project_id"):
-    """
-    Usage dans une route :
-        current_user: User = Depends(authorize_project("project_id"))
-    """
+    # Use case : current_user: User = Depends(authorize_project("project_id"))
     async def _inner(
         request: Request,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
     ) -> User:
         from app.model.project import Project
+        from app.model.vm_request import VMRequest
 
         project_id = request.path_params.get(project_id_param)
 
-        project_members    = []
+        if not project_id and request.method == "POST":
+            try:
+                body = await request.json()
+                project_id = body.get(project_id_param)
+            except Exception:
+                pass
+
+        project_members = []
         project_manager_id = None
         resource_owner_id  = None
 
@@ -137,19 +142,29 @@ def authorize_project(project_id_param: str = "project_id"):
                 raise HTTPException(400, "Invalid project ID")
 
             project = db.query(Project).filter(
-                project_uuid == Project.id
+                project_uuid == Project.id,
+                Project.is_deleted == False
             ).first()
 
             if not project:
                 raise HTTPException(404, "Project not found")
 
             project_members = [str(m.id) for m in project.members]
-
             manager = next(
                 (m for m in project.members if m.role.value == "manager"),
                 None
             )
             project_manager_id = str(manager.id) if manager else None
+
+        request_id = request.path_params.get("request_id")
+        if request_id:
+            try:
+                req_uuid = uuid.UUID(str(request_id))
+                vm = db.query(VMRequest).filter(req_uuid == VMRequest.id).first()
+                if vm:
+                    resource_owner_id = str(vm.requester_id)
+            except ValueError:
+                pass
 
         await check_opa(
             method=request.method,

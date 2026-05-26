@@ -39,7 +39,7 @@ class Project(Base):
 
     status = Column(Enum(ProjectStatus), nullable=False, default=ProjectStatus.pending)
 
-    members = relationship("User", secondary=project_members, back_populates="projects")
+    members = relationship("User", secondary=project_members, back_populates="projects", lazy="select")
     pipelines = relationship("Pipeline", back_populates="project", cascade="all, delete-orphan", order_by="Pipeline.created_at.desc()", lazy="select")
     deployments = relationship("Deployment", back_populates="project", cascade="all, delete-orphan", lazy="select")
     vm_requests = relationship("VMRequest", back_populates="project", cascade="all, delete-orphan", lazy="select")
@@ -59,6 +59,9 @@ class Project(Base):
     @property
     def last_deployment(self):
         return self.deployments[0] if self.deployments else None
+
+    def __repr__(self):
+        return f"<Project name={self.name!r} status={self.status}>"
 
 
 
