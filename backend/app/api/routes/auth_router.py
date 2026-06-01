@@ -60,7 +60,6 @@ def setup_mfa(
 ):
     return UserService.setup_mfa(db, current_user)
 
-
 @auth_router.post("/mfa/confirm")
 def confirm_mfa(
     data: MFAConfirmRequest,

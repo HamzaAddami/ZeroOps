@@ -36,9 +36,7 @@ async def root():
 @app.get("/test-DB-connection")
 async def get_db_connection_health():
     return {"message": f"{test_connection()}"}
-
 @app.get("/health")
 async def get_health():
     return {"status": "ok"}
-
 
