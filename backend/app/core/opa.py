@@ -36,7 +36,7 @@ async def check_opa(
                 f"{OPA_URL}/v1/data/authz/allow",
                 json=opa_input
             )
-            resp.raise_for_status()  # lève une exception si OPA retourne 4xx/5xx
+            resp.raise_for_status()
             result = resp.json()
 
     except httpx.TimeoutException:
