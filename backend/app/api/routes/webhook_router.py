@@ -10,6 +10,7 @@ import httpx
 import jwt
 
 from app.core.db import get_db
+from app.core.opa import check_opa
 from app.model.pipeline import Pipeline, PipelineStage, StageType, StageStatus
 from app.model.project import Project
 from app.service.pipeline_service import PipelineRunner
@@ -151,6 +152,15 @@ async def github_webhook(
 
         for repo in repositories:
             repo_name = repo["name"]
+
+            await check_opa(
+                method="POST",
+                path="/webhooks/github",
+                user_id=repo_owner,
+                role="github_system",
+                token_type="webhook"
+            )
+
             token = await _get_installation_access_token(installation_id)
             background_tasks.add_task(_inject_github_workflow, repo_owner, repo_name, token)
 
@@ -165,10 +175,12 @@ async def github_webhook(
             return {"status": "ignored", "reason": f"Workflow is '{action}' with conclusion '{conclusion}'"}
 
         repo_name = payload.get("repository", {}).get("name", "")
+        sender_login = payload.get("sender", {}).get("login", "unknown")
         commit_sha = workflow_run.get("head_sha", "")
         branch = workflow_run.get("head_branch", "")
         commit_msg = workflow_run.get("head_commit", {}).get("message", "Cloud workflow activation")[:255]
 
+        # Recherche du contexte projet
         project = db.query(Project).filter(
             Project.repository_url.ilike(f"%{repo_name}%"),
             Project.is_deleted == False
@@ -179,6 +191,17 @@ async def github_webhook(
 
         if project.branch and project.branch != branch:
             return {"status": "ignored", "reason": f"Branch mismatch (Targeting: {project.branch})"}
+
+
+        await check_opa(
+            method="POST",
+            path=f"/pipelines/project/{project.id}/trigger",
+            user_id=str(sender_login),
+            role="developer",
+            token_type="webhook",
+            resource_owner_id=str(project.owner_id) if hasattr(project, 'owner_id') else None
+        )
+
 
         pipeline = Pipeline(
             project_id=project.id, commit_sha=commit_sha,
