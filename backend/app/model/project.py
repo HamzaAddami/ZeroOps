@@ -53,7 +53,7 @@ class Project(Base):
         self.deleted_at = datetime.utcnow()
 
     @property
-    def las_pipeline(self):
+    def last_pipeline(self):
         return self.pipelines[0] if self.pipelines else None
 
     @property

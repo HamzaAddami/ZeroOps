@@ -1,16 +1,15 @@
-# app/service/project_service.py
+
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from uuid import UUID
-
+import re
 from app.model.project import Project
 from app.model.user import User
 from app.dto.project_dto import ProjectCreate, ProjectUpdate
+from app.service.github_app_service import get_repo_id, add_repo_to_app_installation
 
 
 class ProjectService:
-
-    # Helpers
 
     @staticmethod
     def _get_or_404(db: Session, project_id: UUID) -> Project:
@@ -58,12 +57,19 @@ class ProjectService:
             )
         return project
 
+    @staticmethod
+    def _parse_repo_info(repository_url: str) -> tuple[str, str] | None:
+        pattern = r"github\.com[/:]([^/]+)/([^/\.]+)"
+        match = re.search(pattern, repository_url or "")
+        if match:
+            return match.group(1), match.group(2)
+        return None
 
     @staticmethod
-    def create_project(
-        db: Session,
-        data: ProjectCreate,
-        user: User
+    async def create_project(
+            db: Session,
+            data: ProjectCreate,
+            user: User
     ) -> Project:
         existing = db.query(Project).filter(
             data.name == Project.name
@@ -80,12 +86,19 @@ class ProjectService:
             repository_url=data.repository_url,
             branch=data.branch or "main",
         )
-
         project.members.append(user)
-
         db.add(project)
         db.commit()
         db.refresh(project)
+
+        if data.repository_url:
+            repo_info = ProjectService._parse_repo_info(data.repository_url)
+            if repo_info:
+                repo_owner, repo_name = repo_info
+                repo_id = await get_repo_id(repo_owner, repo_name)
+                if repo_id:
+                    await add_repo_to_app_installation(repo_id)
+
         return project
 
     @staticmethod

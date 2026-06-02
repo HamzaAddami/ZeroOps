@@ -21,17 +21,13 @@ def list_projects(
     return ProjectService.get_all_projects(db, current_user)
 
 
-@project_router.post(
-    "/",
-    response_model=ProjectResponse,
-    status_code=status.HTTP_201_CREATED
-)
-def create_project(
+@project_router.post("/", response_model=ProjectResponse, status_code=201)
+async def create_project(
     data: ProjectCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(authorize)
 ):
-    return ProjectService.create_project(db, data, current_user)
+    return await ProjectService.create_project(db, data, current_user) 
 
 
 @project_router.get("/by-name/{project_name}", response_model=ProjectResponse)
