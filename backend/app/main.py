@@ -5,6 +5,7 @@ import asyncio
 
 from app.api.routes import pipeline_router
 from app.api.routes.auth_router import auth_router
+from app.api.routes.deployment_router import deployment_router
 from app.api.routes.project_router import project_router
 from app.api.routes.user_router import user_router
 from app.api.routes.vm_request_router import vm_router
@@ -35,6 +36,7 @@ app.include_router(auth_router, prefix=PREFIX)
 app.include_router(vm_router, prefix=PREFIX)
 app.include_router(webhook_router, prefix=PREFIX)
 app.include_router(pipeline_router, prefix=PREFIX)
+app.include_router(deployment_router, prefix=PREFIX)
 
 @app.get("/")
 async def root():

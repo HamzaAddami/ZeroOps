@@ -2,12 +2,24 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from uuid import UUID
+import logging
 import re
 from app.model.project import Project
 from app.model.user import User
 from app.dto.project_dto import ProjectCreate, ProjectUpdate
-from app.service.github_app_service import get_repo_id, add_repo_to_app_installation
+from app.service.sonarcloud_service import (
+    create_sonar_project,
+    generate_sonar_project_token,
+)
+from app.service.github_app_service import (
+    get_repo_id,
+    add_repo_to_app_installation,
+    get_installation_token,
+    inject_workflow_to_repo,
+    inject_repo_secret,
+)
 
+logger = logging.getLogger(__name__)
 
 class ProjectService:
 
@@ -66,19 +78,11 @@ class ProjectService:
         return None
 
     @staticmethod
-    async def create_project(
-            db: Session,
-            data: ProjectCreate,
-            user: User
-    ) -> Project:
-        existing = db.query(Project).filter(
-            data.name == Project.name
-        ).first()
+    async def create_project(db: Session, data: ProjectCreate, user: User) -> Project:
+
+        existing = db.query(Project).filter(data.name == Project.name).first()
         if existing:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                f"Project name '{data.name}' already taken"
-            )
+            raise HTTPException(409, f"Project name '{data.name}' already taken")
 
         project = Project(
             name=data.name,
@@ -95,9 +99,40 @@ class ProjectService:
             repo_info = ProjectService._parse_repo_info(data.repository_url)
             if repo_info:
                 repo_owner, repo_name = repo_info
+                errors = []
+
                 repo_id = await get_repo_id(repo_owner, repo_name)
                 if repo_id:
                     await add_repo_to_app_installation(repo_id)
+                else:
+                    errors.append("repo_not_found")
+
+                try:
+                    gh_token = await get_installation_token()
+                except Exception as e:
+                    logger.error(f"GitHub token error: {e}")
+                    return project
+
+                sonar_ok = await create_sonar_project(repo_name)
+
+                sonar_token = None
+                if sonar_ok:
+                    sonar_token = await generate_sonar_project_token(repo_name)
+
+                if sonar_token:
+                    await inject_repo_secret(
+                        repo_owner=repo_owner,
+                        repo_name=repo_name,
+                        secret_name="SONAR_TOKEN",
+                        secret_value=sonar_token,
+                        token=gh_token,
+                    )
+
+                ok = await inject_workflow_to_repo(repo_owner, repo_name, gh_token)
+                if not ok:
+                    logger.error(f"Workflow injection failed for {repo_name}")
+                if errors:
+                    logger.warning(f"Project created with warnings: {errors}")
 
         return project
 

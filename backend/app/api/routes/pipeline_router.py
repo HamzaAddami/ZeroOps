@@ -1,10 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import List, Optional
+from typing import List
 from datetime import datetime
-from pydantic import BaseModel
-
+from app.dto.pipeline_dto import PipelineResponse, StageResponse
 from app.core.db import get_db
 from app.core.dependecies import authorize_project, authorize
 from app.model.pipeline import Pipeline, PipelineStage, PipelineStatus, StageType, StageStatus
@@ -13,41 +12,6 @@ from app.model.user import User
 from app.service.pipeline_service import PipelineRunner
 
 pipeline_router = APIRouter(prefix="/pipelines", tags=["Pipelines"])
-
-
-
-class StageResponse(BaseModel):
-    id: UUID
-    order: int
-    type: str
-    status: str
-    logs: Optional[str] = None
-    error_message: Optional[str] = None
-    duration_seconds: Optional[int] = None
-    started_at: Optional[datetime] = None
-    finished_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
-
-
-class PipelineResponse(BaseModel):
-    id: UUID
-    project_id: UUID
-    commit_sha: str
-    commit_message: Optional[str] = None
-    branch: str
-    status: str
-    duration_seconds: Optional[int] = None
-    started_at: Optional[datetime] = None  # Fix: Remplacement de str par datetime
-    finished_at: Optional[datetime] = None  # Fix: Remplacement de str par datetime
-    stages: List[StageResponse] = []
-    created_at: datetime  # Fix: Remplacement de str par datetime
-
-    class Config:
-        from_attributes = True
-
-
 
 @pipeline_router.get("/project/{project_id}", response_model=List[PipelineResponse])
 async def list_pipelines(

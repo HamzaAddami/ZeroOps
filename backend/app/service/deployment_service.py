@@ -50,9 +50,7 @@ class DeploymentService:
         replicas_ready: int = None,
         deployment_url: str = None,
     ) -> Deployment:
-        """
-        Appelé par le health-poller ArgoCD ou manuellement.
-        """
+
         d = DeploymentService._get_or_404(db, deployment_id)
         d.status = status
 

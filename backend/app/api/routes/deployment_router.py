@@ -45,10 +45,6 @@ def update_deployment_status(
     db: Session = Depends(get_db),
     current_user: User = Depends(authorize),
 ):
-    """
-    Endpoint appelé par le health-poller ArgoCD pour mettre à jour le statut.
-    Peut aussi être appelé manuellement depuis le dashboard.
-    """
     return DeploymentService.update_status(
         db, deployment_id,
         status=body.status,

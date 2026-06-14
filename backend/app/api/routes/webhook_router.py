@@ -8,19 +8,18 @@ from fastapi import APIRouter, Request, HTTPException, BackgroundTasks, Depends
 from sqlalchemy.orm import Session
 import httpx
 import jwt
-import json
 
 from app.core.db import get_db
 from app.core.opa import check_opa
 from app.model.pipeline import Pipeline, PipelineStage, StageType, StageStatus
-from app.model.project import Project
+from app.model.project import Project, ProjectStatus
 from app.service.pipeline_service import PipelineRunner
 
 logger = logging.getLogger(__name__)
 
-GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET", "")
-GITHUB_APP_ID = os.getenv("GITHUB_APP_ID", "")
-GITHUB_PRIVATE_KEY_PATH = os.getenv("GITHUB_PRIVATE_KEY_PATH", "zeroops-app.private-key.pem")
+GITHUB_WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET")
+GITHUB_APP_ID = os.getenv("GITHUB_APP_ID")
+GITHUB_PRIVATE_KEY_PATH = os.getenv("GITHUB_PRIVATE_KEY_PATH")
 
 webhook_router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
 
@@ -32,7 +31,9 @@ def _verify_github_signature(payload: bytes, signature_header: str | None) -> bo
     if not signature_header:
         return False
     expected = "sha256=" + hmac.new(
-        GITHUB_WEBHOOK_SECRET.encode("utf-8"), payload, hashlib.sha256
+        key=GITHUB_WEBHOOK_SECRET.encode("utf-8"),
+        msg=payload,
+        digestmod=hashlib.sha256
     ).hexdigest()
     return hmac.compare_digest(expected, signature_header)
 
@@ -126,9 +127,9 @@ jobs:
 
         response = await client.put(url, headers=headers, json=data)
         if response.status_code == 201:
-            logger.info(f"✅ Fichier SecOps injecté avec succès sur le dépôt {repo_name}")
+            logger.info(f"Fichier SecOps injecté avec succès sur le dépôt {repo_name}")
         else:
-            logger.error(f"❌ Échec de l'injection automatique sur {repo_name}: {response.text}")
+            logger.error(f"Échec de l'injection automatique sur {repo_name}: {response.text}")
 
 
 @webhook_router.post("/github")
@@ -181,7 +182,6 @@ async def github_webhook(
         branch = workflow_run.get("head_branch", "")
         commit_msg = workflow_run.get("head_commit", {}).get("message", "Cloud workflow activation")[:255]
 
-        # Recherche du contexte projet
         project = db.query(Project).filter(
             Project.repository_url.ilike(f"%{repo_name}%"),
             Project.is_deleted == False
@@ -234,7 +234,7 @@ async def github_webhook(
             ))
 
         project.last_commit_sha = commit_sha
-        project.status = "deploying"
+        project.status = ProjectStatus.building
         db.commit()
 
         background_tasks.add_task(PipelineRunner.run, str(pipeline.id))
