@@ -207,20 +207,20 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-    
+
     permissions:
       contents: read
       packages: write
       id-token: write  
-    
+
     steps:
       - name: Checkout Source Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
         with:
           fetch-depth: 0
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v3
+        uses: SonarSource/sonarqube-scan-action@50132a1a4de93d8b375b478d10b7ee38ff1ba170
         env:
           GITHUB_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}
           SONAR_TOKEN:  ${{{{ secrets.SONAR_TOKEN }}}}
@@ -231,7 +231,7 @@ jobs:
             -Dsonar.host.url=https://sonarcloud.io
 
       - name: Run Trivy Security Scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0
         with:
           scan-type: 'fs'
           format:    'table'
@@ -239,18 +239,20 @@ jobs:
           exit-code: '1'
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@0d22f11125628102930e109a962295000e69b28f
         with:
           registry: ghcr.io
           username: ${{{{ github.actor }}}}
           password: ${{{{ secrets.GITHUB_TOKEN }}}}
 
       - name: Build and Push Docker Image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@ca21434b57b1604102c914839804c90d7a8b5149
         with:
           context: .
           push: true
           tags: ghcr.io/{repo_owner.lower()}/{repo_name.lower()}:sha-${{{{ github.sha }}}}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{{{ github.repository }}}}
 """
 
     encoded = base64.b64encode(workflow_content.encode()).decode()
