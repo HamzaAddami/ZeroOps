@@ -207,7 +207,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-
+    
+    permissions:
+      contents: read
+      packages: write
+      id-token: write  
+    
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
