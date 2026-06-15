@@ -71,8 +71,12 @@ class ProjectService:
 
     @staticmethod
     def _parse_repo_info(repository_url: str) -> tuple[str, str] | None:
-        pattern = r"github\.com[/:]([^/]+)/([^/\.]+)"
-        match = re.search(pattern, repository_url or "")
+        url = (repository_url or "").strip()
+        if url.endswith(".git"):
+            url = url[:-4]
+
+        pattern = r"github\.com[/:]([^/]+)/([^/]+)"
+        match = re.search(pattern, url)
         if match:
             return match.group(1), match.group(2)
         return None
@@ -99,18 +103,20 @@ class ProjectService:
             repo_info = ProjectService._parse_repo_info(data.repository_url)
             if repo_info:
                 repo_owner, repo_name = repo_info
+                logger.info(f"Processing Github sync for {repo_owner}/{repo_name}")
                 errors = []
 
                 repo_id = await get_repo_id(repo_owner, repo_name)
                 if repo_id:
+                    logger.info(f"Found Repo with ID: {repo_id}")
                     await add_repo_to_app_installation(repo_id)
                 else:
-                    errors.append("repo_not_found")
-
+                    logger.error(f"Repo ID not found for {repo_owner}/{repo_name}")
+                    return project
                 try:
                     gh_token = await get_installation_token()
                 except Exception as e:
-                    logger.error(f"GitHub token error: {e}")
+                    logger.error(f"Failed to fetch GitHub token error: {e}")
                     return project
 
                 sonar_ok = await create_sonar_project(repo_name)

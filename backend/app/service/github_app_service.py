@@ -195,7 +195,7 @@ async def inject_workflow_to_repo(repo_owner: str, repo_name: str, token: str) -
         f"https://api.github.com/repos/{repo_owner}/{repo_name}"
         f"/contents/.github/workflows/secops-ci.yml"
     )
-
+    sonar_project_key = f"{repo_owner}_{repo_name}".lower().replace("-", "_")
     workflow_content = f"""name: SecOps Cloud Pipeline
 
 on:
@@ -220,7 +220,7 @@ jobs:
         with:
           args: >
             -Dsonar.organization={repo_owner.lower()}
-            -Dsonar.projectKey={repo_owner.lower()}_{repo_name.lower()}
+            -Dsonar.projectKey={sonar_project_key}
 
       - name: Run Trivy Security Scan
         uses: aquasecurity/trivy-action@master
