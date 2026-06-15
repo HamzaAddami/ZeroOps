@@ -198,52 +198,55 @@ async def inject_workflow_to_repo(repo_owner: str, repo_name: str, token: str) -
     sonar_project_key = f"{repo_owner}_{repo_name}".lower().replace("-", "_")
     workflow_content = f"""name: SecOps Cloud Pipeline
 
-on:
-  push:
-    branches: [ "main" ]
+    on:
+      push:
+        branches: [ "main" ]
 
-jobs:
-  security-and-build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Source Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+    jobs:
+      security-and-build:
+        runs-on: ubuntu-latest
         env:
-          GITHUB_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}
-          SONAR_TOKEN:  ${{{{ secrets.SONAR_TOKEN }}}}
-        with:
-          args: >
-            -Dsonar.organization={repo_owner.lower()}
-            -Dsonar.projectKey={sonar_project_key}
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
-      - name: Run Trivy Security Scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'fs'
-          format:    'table'
-          severity:  'CRITICAL,HIGH'
-          exit-code: '1'
+        steps:
+          - name: Checkout Source Code
+            uses: actions/checkout@v4
+            with:
+              fetch-depth: 0
 
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{{{ github.actor }}}}
-          password: ${{{{ secrets.GITHUB_TOKEN }}}}
+          - name: SonarCloud Scan
+            uses: SonarSource/sonarqube-scan-action@v3
+            env:
+              GITHUB_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}
+              SONAR_TOKEN:  ${{{{ secrets.SONAR_TOKEN }}}}
+            with:
+              args: >
+                -Dsonar.organization={repo_owner.lower()}
+                -Dsonar.projectKey={sonar_project_key}
+                -Dsonar.host.url=https://sonarcloud.io
 
-      - name: Build and Push Docker Image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ghcr.io/{repo_owner.lower()}/{repo_name.lower()}:sha-${{{{ github.sha }}}}
-"""
+          - name: Run Trivy Security Scan
+            uses: aquasecurity/trivy-action@master
+            with:
+              scan-type: 'fs'
+              format:    'table'
+              severity:  'CRITICAL,HIGH'
+              exit-code: '1'
+
+          - name: Log in to GitHub Container Registry
+            uses: docker/login-action@v3
+            with:
+              registry: ghcr.io
+              username: ${{{{ github.actor }}}}
+              password: ${{{{ secrets.GITHUB_TOKEN }}}}
+
+          - name: Build and Push Docker Image
+            uses: docker/build-push-action@v6
+            with:
+              context: .
+              push: true
+              tags: ghcr.io/{repo_owner.lower()}/{repo_name.lower()}:sha-${{{{ github.sha }}}}
+    """
 
     encoded = base64.b64encode(workflow_content.encode()).decode()
     headers = {
