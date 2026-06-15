@@ -62,7 +62,7 @@ async def generate_sonar_project_token(repo_name: str) -> str | None:
             headers=_headers(),
             data={
                 "name":       token_name,
-                "type":       "PROJECT_ANALYSIS_TOKEN",
+                "type":       "standard",
                 "projectKey": project_key,
             },
         )
