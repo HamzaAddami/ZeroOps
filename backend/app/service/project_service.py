@@ -106,13 +106,13 @@ class ProjectService:
                 logger.info(f"Processing Github sync for {repo_owner}/{repo_name}")
                 errors = []
 
-                repo_id = await get_repo_id(repo_owner, repo_name)
-                if repo_id:
-                    logger.info(f"Found Repo with ID: {repo_id}")
-                    await add_repo_to_app_installation(repo_id)
-                else:
-                    logger.error(f"Repo ID not found for {repo_owner}/{repo_name}")
-                    return project
+                # repo_id = await get_repo_id(repo_owner, repo_name)
+                # if repo_id:
+                    # logger.info(f"Found Repo with ID: {repo_id}")
+                    # await add_repo_to_app_installation(repo_id)
+                # else:
+                    # logger.error(f"Repo ID not found for {repo_owner}/{repo_name}")
+                    # return project
                 try:
                     gh_token = await get_installation_token()
                 except Exception as e:
