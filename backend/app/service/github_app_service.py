@@ -215,12 +215,12 @@ jobs:
 
     steps:
       - name: Checkout Source Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332  
         with:
           fetch-depth: 0
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarqube-scan-action@v5
+        uses: SonarSource/sonarqube-scan-action@aa494459d7c39c106cbe2eae096ef87bc7e9d51a  
         env:
           GITHUB_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}
           SONAR_TOKEN:  ${{{{ secrets.SONAR_TOKEN }}}}
@@ -231,7 +231,7 @@ jobs:
             -Dsonar.host.url=https://sonarcloud.io
 
       - name: Run Trivy Security Scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@6c175e9c4083a92bbca2f9724c8a5e53bc471838  
         with:
           scan-type: 'fs'
           format:    'table'
@@ -239,14 +239,14 @@ jobs:
           exit-code: '1'
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567  
         with:
           registry: ghcr.io
           username: ${{{{ github.actor }}}}
           password: ${{{{ secrets.GITHUB_TOKEN }}}}
 
       - name: Build and Push Docker Image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@ca877d9245402d1537745e0e356eab47c3520991  
         with:
           context: .
           push: true
