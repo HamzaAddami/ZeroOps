@@ -24,14 +24,12 @@ GHCR_REGISTRY   = os.getenv("GHCR_REGISTRY", "ghcr.io").lower()
 def _run_cmd(cmd: list[str], input_data: str = None) -> tuple[str, str, int]:
     import subprocess
     merged_env = os.environ.copy()
-    if KUBECONFIG_PATH and os.path.exists(KUBECONFIG_PATH):
-        merged_env["KUBECONFIG"] = KUBECONFIG_PATH
+    merged_env["KUBECONFIG"] = KUBECONFIG_PATH
     result = subprocess.run(
         cmd, env=merged_env, input=input_data,
         capture_output=True, text=True, encoding="utf-8", errors="replace"
     )
     return result.stdout, result.stderr, result.returncode
-
 
 async def _run_cmd_async(cmd, input_data=None):
     loop = asyncio.get_event_loop()
@@ -40,7 +38,7 @@ async def _run_cmd_async(cmd, input_data=None):
 
 async def _ensure_namespace(namespace: str) -> None:
     manifest = f"apiVersion: v1\nkind: Namespace\nmetadata:\n  name: {namespace}"
-    await _run_cmd_async(["kubectl", "apply", "-f", "-"], input_data=manifest)
+    await _run_cmd_async(["kubectl", "apply", "-f", "-", "--validate=false"], input_data=manifest)
 
 
 async def _apply_argocd_application(
@@ -174,7 +172,7 @@ spec:
   type: ClusterIP
 """
     stdout, stderr, code = await _run_cmd_async(
-        ["kubectl", "apply", "-f", "-", "--namespace", namespace],
+        ["kubectl", "apply", "-f", "-", "--namespace", namespace, "--validate=false"],
         input_data=manifest
     )
     if code != 0:
