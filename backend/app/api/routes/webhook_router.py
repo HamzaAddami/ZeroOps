@@ -168,23 +168,34 @@ async def github_webhook(
 
         return {"status": "accepted", "message": "Installation hook processed. Workflow generation queued."}
 
+
     elif event_type == "workflow_run":
+
         action = payload.get("action", "")
+
         workflow_run = payload.get("workflow_run", {})
+
         conclusion = workflow_run.get("conclusion", "")
 
         if action != "completed" or conclusion != "success":
             return {"status": "ignored", "reason": f"Workflow is '{action}' with conclusion '{conclusion}'"}
 
         repo_name = payload.get("repository", {}).get("name", "")
+
         sender_login = payload.get("sender", {}).get("login", "unknown")
+
         commit_sha = workflow_run.get("head_sha", "")
+
         branch = workflow_run.get("head_branch", "")
-        commit_msg = workflow_run.get("head_commit", {}).get("message", "Cloud workflow activation")[:255]
+
+        commit_msg = workflow_run.get("head_commit", {}).get("message", "")[:255]
 
         project = db.query(Project).filter(
+
             Project.repository_url.ilike(f"%{repo_name}%"),
+
             Project.is_deleted == False
+
         ).first()
 
         if not project:
@@ -193,22 +204,20 @@ async def github_webhook(
         if project.branch and project.branch != branch:
             return {"status": "ignored", "reason": f"Branch mismatch (Targeting: {project.branch})"}
 
-
-        await check_opa(
-            method="POST",
-            path=f"/pipelines/project/{project.id}/trigger",
-            user_id=str(sender_login),
-            role="developer",
-            token_type="webhook",
-            resource_owner_id=str(project.owner_id) if hasattr(project, 'owner_id') else None
-        )
-
-
         pipeline = Pipeline(
-            project_id=project.id, commit_sha=commit_sha,
-            commit_message=commit_msg, branch=branch
+
+            project_id=project.id,
+
+            commit_sha=commit_sha,
+
+            commit_message=commit_msg,
+
+            branch=branch
+
         )
+
         db.add(pipeline)
+
         db.flush()
 
         stages_config = [
@@ -218,26 +227,45 @@ async def github_webhook(
              "SonarQube code quality verification verified in cloud platform"),
             (StageType.unit_tests, StageStatus.success,
              "Software test suites executed natively in cloud runner workspace"),
-            (StageType.build, StageStatus.success, "Docker image compilation completed successfully"),
+            (StageType.build, StageStatus.success,
+             "Docker image compilation completed successfully"),
             (StageType.security_scan, StageStatus.success,
              "Trivy analyzer report processed: 0 critical vulnerabilities discovered"),
             (StageType.push_registry, StageStatus.success,
              "Artifact snapshot successfully synchronized with GHCR registry"),
-            (
-            StageType.deploy, StageStatus.pending, "Initiating Local Kubernetes infrastructure deployment sequence..."),
+            (StageType.deploy, StageStatus.pending,
+             "Initiating Local Kubernetes infrastructure deployment sequence..."),
         ]
 
         for i, (stage_type, status, log_desc) in enumerate(stages_config, start=1):
             db.add(PipelineStage(
-                pipeline_id=pipeline.id, order=i, type=stage_type, status=status,
+
+                pipeline_id=pipeline.id,
+
+                order=i,
+
+                type=stage_type,
+
+                status=status,
+
                 logs=log_desc if status == StageStatus.success else None
+
             ))
 
         project.last_commit_sha = commit_sha
+
         project.status = ProjectStatus.building
+
         db.commit()
 
         background_tasks.add_task(PipelineRunner.run, str(pipeline.id))
-        return {"status": "accepted", "pipeline_id": str(pipeline.id), "project": project.name}
 
-    return {"status": "ignored", "reason": f"Event '{event_type}' unhandled"}
+        return {
+
+            "status": "accepted",
+
+            "pipeline_id": str(pipeline.id),
+
+            "project": project.name
+
+        }

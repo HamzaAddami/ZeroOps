@@ -9,7 +9,6 @@ from app.model.pipeline import Pipeline, PipelineStage, PipelineStatus, StageTyp
 from app.model.deployment import Deployment, DeploymentStatus
 from app.model.project import Project, ProjectStatus
 from app.core.db import Session as SessionLocal
-from app.service.github_app_service import GITHUB_ORG
 
 logger = logging.getLogger(__name__)
 
