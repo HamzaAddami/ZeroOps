@@ -70,7 +70,7 @@ class VMRequestService:
         return vm
 
     @staticmethod
-    def approve(
+    async def approve(
             db: Session,
             request_id: UUID,
             reviewer: User,
