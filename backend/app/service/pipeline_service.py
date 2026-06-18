@@ -13,12 +13,12 @@ from app.core.db import Session as SessionLocal
 logger = logging.getLogger(__name__)
 
 KUBECONFIG_PATH = os.getenv("KUBECONFIG_PATH", "/etc/rancher/k3s/k3s.yaml")
-K8S_NS_PREFIX   = os.getenv("K8S_NAMESPACE_PREFIX", "idp")
-ARGOCD_SERVER   = os.getenv("ARGOCD_SERVER", "https://argocd.local")
-ARGOCD_TOKEN    = os.getenv("ARGOCD_TOKEN", "")
-GHCR_USERNAME   = os.getenv("GHCR_USERNAME", "zeroops-apps").lower()
-GITHUB_ORG      = os.getenv("GITHUB_ORG")
-GHCR_REGISTRY   = os.getenv("GHCR_REGISTRY", "ghcr.io").lower()
+K8S_NS_PREFIX = os.getenv("K8S_NAMESPACE_PREFIX", "idp")
+ARGOCD_SERVER = os.getenv("ARGOCD_SERVER", "https://argocd.local")
+ARGOCD_TOKEN = os.getenv("ARGOCD_TOKEN", "")
+GHCR_USERNAME = os.getenv("GHCR_USERNAME", "zeroops-apps").lower()
+GITHUB_ORG = os.getenv("GITHUB_ORG")
+GHCR_REGISTRY = os.getenv("GHCR_REGISTRY", "ghcr.io").lower()
 
 
 def _run_cmd(cmd: list[str], input_data: str = None) -> tuple[str, str, int]:
@@ -31,6 +31,7 @@ def _run_cmd(cmd: list[str], input_data: str = None) -> tuple[str, str, int]:
     )
     return result.stdout, result.stderr, result.returncode
 
+
 async def _run_cmd_async(cmd, input_data=None):
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, lambda: _run_cmd(cmd, input_data))
@@ -42,12 +43,11 @@ async def _ensure_namespace(namespace: str) -> None:
 
 
 async def _apply_argocd_application(
-    project_name: str,
-    image_tag: str,
-    namespace: str,
-    pipeline_id: str,
+        project_name: str,
+        image_tag: str,
+        namespace: str,
+        pipeline_id: str,
 ) -> tuple[bool, str]:
-
     app_name = f"{project_name}-app".lower().replace("_", "-")
 
     app_manifest = f"""apiVersion: argoproj.io/v1alpha1
@@ -80,21 +80,34 @@ spec:
 """
 
     stdout, stderr, code = await _run_cmd_async(
-        ["kubectl", "apply", "-f", "-"], input_data=app_manifest
+        ["kubectl", "apply", "-f", "-", "--validate=false"], input_data=app_manifest
     )
     if code != 0:
         return False, f"ArgoCD Application apply failed:\n{stderr[:1000]}"
+
+    await asyncio.sleep(5)
 
     patch = (
         f'{{"spec":{{"template":{{"spec":{{"containers":'
         f'[{{"name":"{project_name}","image":"{image_tag}"}}]}}}}}}}}'
     )
-    stdout2, stderr2, code2 = await _run_cmd_async([
-        "kubectl", "patch", "deployment", project_name,
-        "-n", namespace,
-        "--type=merge",
-        f"--patch={patch}"
-    ])
+
+    # Tentative d'application du patch avec ré-essais (au cas où le déploiement met du temps à apparaître via ArgoCD)
+    patched = False
+    for _ in range(6):
+        stdout2, stderr2, code2 = await _run_cmd_async([
+            "kubectl", "patch", "deployment", project_name,
+            "-n", namespace,
+            "--type=merge",
+            f"--patch={patch}"
+        ])
+        if code2 == 0:
+            patched = True
+            break
+        await asyncio.sleep(5)
+
+    if not patched:
+        return False, f"ArgoCD Patch Deployment failed (Deployment not found or ready in time):\n{stderr2[:800]}"
 
     stdout3, stderr3, code3 = await _run_cmd_async([
         "kubectl", "rollout", "status",
@@ -109,10 +122,10 @@ spec:
 
 
 async def _stage_deploy(
-    project_name: str,
-    image_tag: str,
-    pipeline_id: str,
-    commit_sha: str,
+        project_name: str,
+        image_tag: str,
+        pipeline_id: str,
+        commit_sha: str,
 ) -> tuple[bool, str, str]:
     namespace = f"{K8S_NS_PREFIX}-{project_name}".lower().replace("_", "-")
     await _ensure_namespace(namespace)
@@ -126,11 +139,11 @@ async def _stage_deploy(
 
 
 async def _stage_deploy_kubectl(
-    project_name: str,
-    image_tag: str,
-    pipeline_id: str,
-    commit_sha: str,
-    namespace: str,
+        project_name: str,
+        image_tag: str,
+        pipeline_id: str,
+        commit_sha: str,
+        namespace: str,
 ) -> tuple[bool, str, str]:
     manifest = f"""apiVersion: apps/v1
 kind: Deployment
