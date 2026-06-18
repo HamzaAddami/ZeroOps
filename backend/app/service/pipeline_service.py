@@ -1,6 +1,7 @@
 import os
 import asyncio
 import logging
+import re
 import traceback
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -19,6 +20,14 @@ ARGOCD_TOKEN = os.getenv("ARGOCD_TOKEN", "")
 GHCR_USERNAME = os.getenv("GHCR_USERNAME", "zeroops-apps").lower()
 GITHUB_ORG = os.getenv("GITHUB_ORG")
 GHCR_REGISTRY = os.getenv("GHCR_REGISTRY", "ghcr.io").lower()
+
+
+def _sanitize_k8s_name(name: str) -> str:
+    name = name.lower()
+    name = re.sub(r'[^a-z0-9\-.]', '-', name)
+    name = re.sub(r'-+', '-', name)
+    name = name.strip('-.')
+    return name[:63]
 
 
 def _run_cmd(cmd: list[str], input_data: str = None) -> tuple[str, str, int]:
@@ -48,7 +57,8 @@ async def _apply_argocd_application(
         namespace: str,
         pipeline_id: str,
 ) -> tuple[bool, str]:
-    app_name = f"{project_name}-app".lower().replace("_", "-")
+    app_name = _sanitize_k8s_name(f"{project_name}-app")
+    deployment_name = _sanitize_k8s_name(project_name)
 
     app_manifest = f"""apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -89,14 +99,14 @@ spec:
 
     patch = (
         f'{{"spec":{{"template":{{"spec":{{"containers":'
-        f'[{{"name":"{project_name}","image":"{image_tag}"}}]}}}}}}}}'
+        f'[{{"name":"{deployment_name}","image":"{image_tag}"}}]}}}}}}}}'
     )
 
-    # Tentative d'application du patch avec ré-essais (au cas où le déploiement met du temps à apparaître via ArgoCD)
+    # Retry patching in case ArgoCD hasn't synced the Deployment yet
     patched = False
     for _ in range(6):
         stdout2, stderr2, code2 = await _run_cmd_async([
-            "kubectl", "patch", "deployment", project_name,
+            "kubectl", "patch", "deployment", deployment_name,
             "-n", namespace,
             "--type=merge",
             f"--patch={patch}"
@@ -111,7 +121,7 @@ spec:
 
     stdout3, stderr3, code3 = await _run_cmd_async([
         "kubectl", "rollout", "status",
-        f"deployment/{project_name}",
+        f"deployment/{deployment_name}",
         f"--namespace={namespace}",
         "--timeout=120s"
     ])
@@ -127,7 +137,7 @@ async def _stage_deploy(
         pipeline_id: str,
         commit_sha: str,
 ) -> tuple[bool, str, str]:
-    namespace = f"{K8S_NS_PREFIX}-{project_name}".lower().replace("_", "-")
+    namespace = _sanitize_k8s_name(f"{K8S_NS_PREFIX}-{project_name}")
     await _ensure_namespace(namespace)
 
     if not ARGOCD_TOKEN:
@@ -145,27 +155,30 @@ async def _stage_deploy_kubectl(
         commit_sha: str,
         namespace: str,
 ) -> tuple[bool, str, str]:
+    deployment_name = _sanitize_k8s_name(project_name)
+    service_name = _sanitize_k8s_name(f"{project_name}-svc")
+
     manifest = f"""apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {project_name}
+  name: {deployment_name}
   namespace: {namespace}
   labels:
-    app: {project_name}
+    app: {deployment_name}
     pipeline-id: "{pipeline_id}"
     commit: "{commit_sha[:8]}"
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {project_name}
+      app: {deployment_name}
   template:
     metadata:
       labels:
-        app: {project_name}
+        app: {deployment_name}
     spec:
       containers:
-      - name: {project_name}
+      - name: {deployment_name}
         image: {image_tag}
         imagePullPolicy: Always
         ports:
@@ -174,11 +187,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {project_name}-svc
+  name: {service_name}
   namespace: {namespace}
 spec:
   selector:
-    app: {project_name}
+    app: {deployment_name}
   ports:
   - port: 80
     targetPort: 8000
@@ -193,7 +206,7 @@ spec:
 
     stdout2, stderr2, code2 = await _run_cmd_async([
         "kubectl", "rollout", "status",
-        f"deployment/{project_name}",
+        f"deployment/{deployment_name}",
         f"--namespace={namespace}",
         "--timeout=120s"
     ])
